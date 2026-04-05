@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>dihGPT</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #212121;
+            color: #ececec;
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #424242;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* Animations */
+        @keyframes pulse-opacity {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .animate-pulse-slow {
+            animation: pulse-opacity 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        /* Thinking Accordion Transition */
+        .thinking-content {
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+        }
+        .thinking-content.open {
+            max-height: 500px; /* Arbitrary large number */
+            opacity: 1;
+        }
+
+        /* Clean transitions */
+        .fade-out {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .option-btn {
+            transition: all 0.2s ease;
+        }
+        .option-btn.selected {
+            background-color: #383838;
+            border-color: #555;
+        }
+    </style>
+</head>
+<body class="h-screen flex overflow-hidden antialiased selection:bg-gray-300 selection:text-black">
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="bg-[#171717] w-64 h-full flex flex-col transition-all duration-300 absolute md:relative z-20 -translate-x-full md:translate-x-0">
+        <div class="p-3 flex items-center justify-between">
+            <button class="flex items-center gap-2 hover:bg-[#2f2f2f] p-2 rounded-lg transition-colors text-sm font-medium w-full text-left" onclick="startNewChat()">
+                <div class="bg-white text-black p-1 rounded-full">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i>
+                </div>
+                New chat
+            </button>
+            <button id="close-sidebar-btn" class="md:hidden p-2 text-gray-400 hover:text-white rounded-md">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto px-3 py-4 space-y-2 flex flex-col items-center justify-center opacity-40">
+            <i data-lucide="message-square-dashed" class="w-8 h-8 text-gray-500 mb-2"></i>
+            <p class="text-xs text-gray-400 font-medium">History is empty</p>
+        </div>
+
+        <div class="p-3 border-t border-[#2f2f2f]">
+            <button class="flex items-center gap-3 hover:bg-[#2f2f2f] p-2 rounded-lg transition-colors text-sm font-medium w-full text-left">
+                <div class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-white font-bold">
+                    U
+                </div>
+                User Account
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-full bg-[#212121] relative">
+        
+        <!-- Header -->
+        <header class="flex items-center justify-between p-3 md:p-4 text-gray-200 border-b border-transparent md:border-transparent absolute top-0 w-full z-10 bg-gradient-to-b from-[#212121] to-transparent">
+            <div class="flex items-center gap-2">
+                <button id="open-sidebar-btn" class="p-2 text-gray-400 hover:text-white rounded-md md:hidden">
+                    <i data-lucide="menu" class="w-6 h-6"></i>
+                </button>
+                <div class="font-medium text-lg flex items-center gap-2">
+                    dihGPT <span class="text-gray-400 text-sm">Reasoning</span>
+                </div>
+            </div>
+            <button class="p-2 text-gray-400 hover:text-white rounded-md" onclick="startNewChat()">
+                <i data-lucide="square-pen" class="w-5 h-5"></i>
+            </button>
+        </header>
+
+        <!-- Chat Container -->
+        <div id="chat-container" class="flex-1 overflow-y-auto pb-32 pt-16 scroll-smooth">
+            <div class="max-w-3xl mx-auto flex flex-col justify-center min-h-full px-4" id="welcome-screen">
+                <div class="text-center">
+                    <div class="w-12 h-12 bg-white rounded-full mx-auto mb-4 flex items-center justify-center">
+                        <i data-lucide="brain" class="w-6 h-6 text-black"></i>
+                    </div>
+                    <h1 class="text-2xl font-semibold mb-2">How can I help you today?</h1>
+                    <p class="text-gray-400 text-sm mb-8">This model utilizes deep thinking processes before responding.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl mx-auto w-full">
+                    <button class="border border-[#383838] hover:bg-[#2f2f2f] rounded-xl p-4 text-left transition-colors text-sm flex flex-col gap-1" onclick="setInput('Write a Python script for a snake game')">
+                        <span class="font-medium text-gray-200">Write a Python script</span>
+                        <span class="text-gray-500">for a classic snake game</span>
+                    </button>
+                    <button class="border border-[#383838] hover:bg-[#2f2f2f] rounded-xl p-4 text-left transition-colors text-sm flex flex-col gap-1" onclick="setInput('Explain string theory to a 5 year old')">
+                        <span class="font-medium text-gray-200">Explain string theory</span>
+                        <span class="text-gray-500">to a 5 year old</span>
+                    </button>
+                </div>
+            </div>
+            <div id="messages" class="max-w-3xl mx-auto px-4 flex flex-col gap-6 py-6 hidden">
+                <!-- Messages will be injected here -->
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="absolute bottom-0 w-full bg-gradient-to-t from-[#212121] via-[#212121] to-transparent pt-6 pb-6 px-4">
+            <div class="max-w-3xl mx-auto">
+                <div class="relative bg-[#2f2f2f] rounded-2xl border border-[#383838] focus-within:border-[#666] transition-colors">
+                    <textarea 
+                        id="user-input" 
+                        rows="1" 
+                        class="w-full bg-transparent text-white placeholder-gray-500 rounded-2xl py-4 pl-4 pr-12 focus:outline-none resize-none max-h-48 overflow-y-auto"
+                        placeholder="Message dihGPT..."
+                        oninput="autoResize(this)"
+                        onkeydown="handleKeyDown(event)"
+                    ></textarea>
+                    <button id="send-btn" class="absolute bottom-3 right-3 p-1.5 bg-white text-black rounded-full hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:bg-gray-500 disabled:text-white" disabled onclick="handleSend()">
+                        <i data-lucide="arrow-up" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <div class="text-center text-xs text-gray-500 mt-2">
+                    dihGPT can make mistakes. Consider verifying important information.
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Clean Organic Onboarding Modal -->
+    <div id="onboarding-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 transition-opacity duration-300 px-4">
+        <div class="bg-[#212121] border border-[#383838] p-6 md:p-8 rounded-2xl max-w-md w-full shadow-2xl transform transition-all duration-300">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="brain" class="w-5 h-5 text-black"></i>
+                </div>
+                <h2 class="text-xl font-semibold text-white">Welcome to dihGPT</h2>
+            </div>
+            
+            <div class="space-y-4 text-gray-300 text-sm leading-relaxed mb-8">
+                <p>
+                    You are trying out a new paradigm in AI interaction. This model is designed to spend compute time <strong>thinking</strong> before it responds to you.
+                </p>
+                <p>
+                    By allocating more time to processing your prompt, breaking down logic, and exploring multiple angles internally, it achieves unprecedented breakthroughs in coding, math, and creative reasoning.
+                </p>
+                <p class="text-gray-400 italic">
+                    Expect longer wait times, but unparalleled accuracy.
+                </p>
+            </div>
+
+            <div class="space-y-2 mb-8">
+                <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Select your primary focus:</p>
+                <button onclick="selectFocus(this)" class="option-btn w-full text-left border border-[#383838] bg-[#2a2a2a] p-3 rounded-lg flex items-center justify-between text-sm text-gray-200 hover:bg-[#333]">
+                    Logic & Coding
+                    <i data-lucide="check-circle-2" class="w-4 h-4 text-gray-500 hidden check-icon"></i>
+                </button>
+                <button onclick="selectFocus(this)" class="option-btn w-full text-left border border-[#383838] bg-[#2a2a2a] p-3 rounded-lg flex items-center justify-between text-sm text-gray-200 hover:bg-[#333]">
+                    Deep Research
+                    <i data-lucide="check-circle-2" class="w-4 h-4 text-gray-500 hidden check-icon"></i>
+                </button>
+                <button onclick="selectFocus(this)" class="option-btn w-full text-left border border-[#383838] bg-[#2a2a2a] p-3 rounded-lg flex items-center justify-between text-sm text-gray-200 hover:bg-[#333]">
+                    Creative Synthesis
+                    <i data-lucide="check-circle-2" class="w-4 h-4 text-gray-500 hidden check-icon"></i>
+                </button>
+            </div>
+
+            <div class="flex justify-end">
+                <button onclick="closeOnboarding()" id="start-btn" class="px-6 py-2.5 bg-white text-black font-medium text-sm rounded-lg hover:bg-gray-200 transition-colors opacity-50 cursor-not-allowed" disabled>
+                    Acknowledge & Start
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        // DOM Elements
+        const sidebar = document.getElementById('sidebar');
+        const openSidebarBtn = document.getElementById('open-sidebar-btn');
+        const closeSidebarBtn = document.getElementById('close-sidebar-btn');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const chatContainer = document.getElementById('chat-container');
+        const messagesContainer = document.getElementById('messages');
+        const welcomeScreen = document.getElementById('welcome-screen');
+
+        let isGenerating = false;
+
+        // Onboarding Logic
+        function selectFocus(btn) {
+            document.querySelectorAll('.option-btn').forEach(b => {
+                b.classList.remove('selected');
+                b.querySelector('.check-icon').classList.add('hidden');
+            });
+            btn.classList.add('selected');
+            const icon = btn.querySelector('.check-icon');
+            icon.classList.remove('hidden');
+            icon.classList.remove('text-gray-500');
+            icon.classList.add('text-white');
+            
+            const startBtn = document.getElementById('start-btn');
+            startBtn.disabled = false;
+            startBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+
+        function closeOnboarding() {
+            const modal = document.getElementById('onboarding-modal');
+            modal.classList.add('fade-out');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                userInput.focus();
+            }, 300);
+        }
+
+        // Mobile Sidebar Toggle
+        openSidebarBtn.addEventListener('click', () => {
+            sidebar.classList.remove('-translate-x-full');
+        });
+        closeSidebarBtn.addEventListener('click', () => {
+            sidebar.classList.add('-translate-x-full');
+        });
+
+        // Input Handling
+        userInput.addEventListener('input', () => {
+            sendBtn.disabled = userInput.value.trim() === '' || isGenerating;
+        });
+
+        function autoResize(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+        }
+
+        function setInput(text) {
+            userInput.value = text;
+            autoResize(userInput);
+            userInput.focus();
+            sendBtn.disabled = false;
+        }
+
+        function handleKeyDown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                handleSend();
+            }
+        }
+
+        function startNewChat() {
+            if (isGenerating) return;
+            messagesContainer.innerHTML = '';
+            messagesContainer.classList.add('hidden');
+            welcomeScreen.classList.remove('hidden');
+            userInput.value = '';
+            autoResize(userInput);
+            if(window.innerWidth < 768) {
+                sidebar.classList.add('-translate-x-full');
+            }
+        }
+
+        async function handleSend() {
+            const prompt = userInput.value.trim();
+            if (!prompt || isGenerating) return;
+
+            // Reset input
+            userInput.value = '';
+            userInput.style.height = 'auto';
+            sendBtn.disabled = true;
+            isGenerating = true;
+
+            // Hide welcome, show chat
+            welcomeScreen.classList.add('hidden');
+            messagesContainer.classList.remove('hidden');
+
+            // Render User Message
+            renderUserMessage(prompt);
+
+            // Create Bot Message Container with Thinking UI
+            const botMsgId = 'msg-' + Date.now();
+            const botContainer = document.createElement('div');
+            botContainer.className = 'flex gap-4 mb-4';
+            botContainer.id = botMsgId;
+            
+            // Bot HTML structure (Avatar + Content)
+            botContainer.innerHTML = `
+                <div class="w-8 h-8 rounded-full bg-white flex-shrink-0 flex items-center justify-center self-start mt-1 border border-gray-300">
+                    <i data-lucide="brain" class="w-4 h-4 text-black"></i>
+                </div>
+                <div class="flex-1 min-w-0 flex flex-col gap-2 pt-1">
+                    
+                    <!-- Simple Organic Thinking Text -->
+                    <div class="text-sm text-gray-400 mb-1">
+                        <button class="hover:text-gray-300 text-left flex items-start gap-2 group" onclick="toggleSimpleThinking(this)">
+                            <span class="font-mono text-xs mt-0.5 text-gray-500 group-hover:text-gray-400" id="toggle-icon-${botMsgId}">[+]</span> 
+                            <span class="italic" id="status-${botMsgId}">Thinking...</span>
+                        </button>
+                        <div class="hidden pl-3 border-l-2 border-[#383838] ml-1.5 mt-2 font-mono text-xs text-gray-500 space-y-1.5 py-1" id="logs-${botMsgId}">
+                            <!-- Logs will appear here -->
+                        </div>
+                    </div>
+
+                    <!-- Final Answer Container -->
+                    <div class="prose prose-invert max-w-none text-gray-200 mt-1 hidden whitespace-pre-wrap leading-relaxed" id="answer-${botMsgId}">
+                    </div>
+                </div>
+            `;
+            
+            messagesContainer.appendChild(botContainer);
+            lucide.createIcons();
+            scrollToBottom();
+
+            // Start fake thinking process
+            await simulateDeepThinking(prompt, botMsgId);
+
+            isGenerating = false;
+            sendBtn.disabled = userInput.value.trim() === '';
+        }
+
+        function renderUserMessage(text) {
+            const container = document.createElement('div');
+            container.className = 'flex justify-end mb-4';
+            container.innerHTML = `
+                <div class="bg-[#2f2f2f] text-gray-100 rounded-2xl rounded-tr-sm px-5 py-2.5 max-w-[85%] whitespace-pre-wrap break-words text-[15px]">
+                    ${escapeHTML(text)}
+                </div>
+            `;
+            messagesContainer.appendChild(container);
+            scrollToBottom();
+        }
+
+        // Fake Thinking Logic
+        const delay = (ms) => new Promise(res => setTimeout(res, ms));
+
+        async function simulateDeepThinking(prompt, msgId) {
+            const logsContainer = document.getElementById(`logs-${msgId}`);
+            const statusText = document.getElementById(`status-${msgId}`);
+            const answerContainer = document.getElementById(`answer-${msgId}`);
+            
+            const addLog = async (text, waitTime) => {
+                statusText.innerText = `Thinking: ${text}...`;
+                const p = document.createElement('div');
+                p.innerText = `> ${text}`;
+                logsContainer.appendChild(p);
+                scrollToBottom();
+                await delay(waitTime);
+            };
+
+            const genericThoughts = [
+                "Analyzing semantic weight distribution",
+                "Cross-referencing multi-dimensional matrices",
+                "Applying zero-shot reasoning heuristics",
+                "Normalizing input vectors",
+                "Evaluating ethical and safety guardrails",
+                "Retrieving relevant context from latent space",
+                "Synthesizing probability distributions",
+                "Generating counter-factual hypotheses",
+                "Optimizing token sequence generation",
+                "Calculating vector cosine similarities",
+                "Parsing implicit contextual nuance"
+            ];
+
+            // Extract keywords from prompt to make thinking look dynamic and targeted
+            const stopWords = ['a', 'an', 'the', 'and', 'or', 'but', 'is', 'are', 'was', 'were', 'to', 'for', 'with', 'on', 'in', 'at', 'by', 'of', 'how', 'what', 'why', 'when', 'where', 'can', 'you', 'i', 'me', 'my'];
+            const words = prompt.split(/[^\w']+/).filter(w => w.length > 3 && !stopWords.includes(w.toLowerCase()));
+            const keywords = words.length > 0 ? words : ["the query structure"];
+
+            const dynamicThoughtTemplates = [
+                (kw) => `Deconstructing the concept of "${kw}"`,
+                (kw) => `Evaluating the contextual relevance of "${kw}"`,
+                (kw) => `Querying historical data regarding "${kw}"`,
+                (kw) => `Cross-referencing "${kw}" with internal knowledge graphs`,
+                (kw) => `Isolating logical parameters related to "${kw}"`,
+                (kw) => `Mapping semantic bounds for "${kw}"`
+            ];
+
+            // Generate a sequence of thoughts combining generic and dynamic ones
+            const numThoughts = Math.floor(Math.random() * 4) + 5; // 5 to 8 thoughts
+            let sequence = [];
+            
+            for(let i = 0; i < numThoughts; i++) {
+                if (Math.random() > 0.4 && keywords.length > 0) { // 60% chance for a dynamic thought if keywords exist
+                    const randomKw = keywords[Math.floor(Math.random() * keywords.length)];
+                    const template = dynamicThoughtTemplates[Math.floor(Math.random() * dynamicThoughtTemplates.length)];
+                    sequence.push(template(randomKw));
+                } else {
+                    const randomGeneric = genericThoughts[Math.floor(Math.random() * genericThoughts.length)];
+                    sequence.push(randomGeneric);
+                }
+            }
+
+            await delay(500);
+            await addLog(`Parsing structural boundaries of prompt`, 800);
+            await addLog(`Extracting key directive: "${prompt.substring(0, 40)}${prompt.length > 40 ? '...' : ''}"`, 1200);
+            
+            for (const thought of sequence) {
+                await addLog(thought, Math.random() * 1800 + 700); // Wait between 0.7s and 2.5s per thought
+            }
+            
+            await addLog("Consolidating reasoning nodes", 900);
+            await addLog("Finalizing optimal output sequence", 800);
+
+            // Finish thinking
+            statusText.innerText = "Thinking complete.";
+            statusText.classList.remove('italic');
+
+            await delay(400); // Slight pause before answer appears
+
+            // Show final answer
+            answerContainer.classList.remove('hidden');
+            
+            const prefixes = [
+                "This is a tricky one, but i've figured out the answer:\n",
+                "After deep deliberation, here is what I found:\n",
+                "I've analyzed the request completely. The result is:\n",
+                "Based on my complex reasoning protocols, the answer is:\n",
+                "I had to think about this for a while, but I have it:\n",
+                "Here is the optimal response:\n"
+            ];
+            const randomPrefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+            const finalWord = randomPrefix + "dih.";
+            
+            for(let i=0; i<=finalWord.length; i++) {
+                let currentText = finalWord.substring(0, i);
+                answerContainer.innerHTML = currentText + (i < finalWord.length ? '<span class="inline-block w-2 h-4 bg-gray-400 ml-1 animate-pulse"></span>' : '');
+                await delay(Math.random() * 30 + 20); // Random typing speed
+            }
+            
+            scrollToBottom();
+        }
+
+        // Utility: Toggle Simple Thinking Accordion
+        window.toggleSimpleThinking = function(button) {
+            const content = button.nextElementSibling;
+            const icon = button.querySelector('span:first-child');
+            
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                icon.innerText = '[-]';
+            } else {
+                content.classList.add('hidden');
+                icon.innerText = '[+]';
+            }
+        }
+
+        // Utility: Scroll to bottom
+        function scrollToBottom() {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Utility: Escape HTML to prevent XSS
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    "'": '&#39;',
+                    '"': '&quot;'
+                }[tag] || tag)
+            );
+        }
+
+    </script>
+</body>
+</html>
