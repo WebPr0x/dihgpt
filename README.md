@@ -15,7 +15,7 @@ Supports:
  DihGPT is better than DeepSeek*
  DihGPT is better than Gemini*
  
- Try it now at *webpr0x.github.io/dihgpt*.
+ Try it now at *[webpr0x.github.io/dihgpt](https://webpr0x.github.io/dihgpt)*.
 (BETA TESTING)
 
 
