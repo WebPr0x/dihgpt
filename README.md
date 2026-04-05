@@ -18,20 +18,8 @@ Supports:
  Try it now at *webpr0x.github.io/dihgpt*.
 (BETA TESTING)
 
-<small>This text is smaller.</small>
 
+![dihGPT banner saying "the future, today."](banner.png)
+  
 
-
-
-
-
-
-
-
-
-
-
-
-
-We are not responsible
-
+<sup>We are not responsible for damaged brain cells or IQs caused by dihGPT. By using dihGPT, the user consents to data collection at all times of all personal devices and surveilence to be sold to governments around the world.</sup>
