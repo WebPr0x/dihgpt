@@ -1,5 +1,3 @@
-**
-
 ## DihGPT
 
 *The best AI chatbot in the market.*
@@ -19,6 +17,8 @@ Supports:
  
  Try it now at *webpr0x.github.io/dihgpt*.
 (BETA TESTING)
+
+<small>This text is smaller.</small>
 
 
 
