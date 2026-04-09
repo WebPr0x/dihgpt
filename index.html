@@ -26,6 +26,11 @@
         body.studio-mode #main-header { background-color: transparent !important; }
         body.studio-mode #input-area-wrapper { background: linear-gradient(to top, #050505 70%, transparent) !important; }
         body.studio-mode #studio-bg-effects { opacity: 1; }
+        
+        /* Hide native details marker for custom chevron */
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden selection:bg-blue-500/30 selection:text-blue-200">
@@ -66,7 +71,7 @@
 
         <!-- Header -->
         <header id="main-header" class="h-14 flex items-center justify-between px-4 sticky top-0 bg-[#212121] z-20 transition-colors duration-500">
-            <div class="flex items-center gap-2">
+            <div class="w-24 flex items-center gap-2">
                 <button id="open-sidebar-btn" class="text-gray-400 hover:text-white p-2 md:hidden">
                     <i data-lucide="menu" class="w-5 h-5"></i>
                 </button>
@@ -76,19 +81,21 @@
             </div>
             
             <!-- Standard Mode Tabs -->
-            <div id="main-tabs" class="flex items-center justify-center gap-1 bg-white/5 backdrop-blur-md rounded-lg p-1 mx-auto border border-white/10">
+            <div id="main-tabs" class="flex items-center justify-center gap-1 bg-white/5 backdrop-blur-md rounded-lg p-1 border border-white/10">
                 <button onclick="setMode('text')" class="mode-tab bg-blue-600 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors" data-mode="text">Chat</button>
                 <button onclick="setMode('image')" class="mode-tab bg-transparent text-gray-400 hover:text-gray-200 px-3 py-1.5 rounded-md text-sm font-medium transition-colors" data-mode="image">Image</button>
             </div>
 
             <!-- Studio Mode Tabs (Hidden by default) -->
-            <div id="studio-tabs" class="hidden items-center justify-center gap-1 bg-white/5 backdrop-blur-md rounded-lg p-1 mx-auto border border-white/10 shadow-lg">
+            <div id="studio-tabs" class="hidden items-center justify-center gap-1 bg-white/5 backdrop-blur-md rounded-lg p-1 border border-white/10 shadow-lg">
                 <button onclick="setMode('audio')" class="mode-tab bg-transparent text-gray-400 hover:text-gray-200 px-3 py-1.5 rounded-md text-sm font-medium transition-colors" data-mode="audio">Audio</button>
                 <button onclick="setMode('video')" class="mode-tab bg-transparent text-gray-400 hover:text-gray-200 px-3 py-1.5 rounded-md text-sm font-medium transition-colors" data-mode="video">Video</button>
             </div>
 
-            <div class="w-9 h-9 flex items-center justify-center">
-                <!-- Spacer for perfect centering -->
+            <div class="w-24 flex items-center justify-end">
+                <button id="header-studio-btn" onclick="enterStudioMode()" class="flex items-center gap-1.5 text-xs font-medium text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 px-3 py-1.5 rounded-full border border-blue-500/20 transition-all">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> <span class="hidden sm:inline">Studio</span>
+                </button>
             </div>
         </header>
 
@@ -389,6 +396,9 @@
             openSidebarBtn.classList.add('hidden');
             exitStudioBtn.classList.remove('hidden');
             studioCta.classList.add('hidden'); 
+            
+            const headerStudioBtn = document.getElementById('header-studio-btn');
+            if (headerStudioBtn) headerStudioBtn.classList.add('hidden');
 
             messagesContainer.innerHTML = '';
             messagesContainer.classList.add('hidden');
@@ -410,6 +420,9 @@
             openSidebarBtn.classList.remove('hidden');
             studioCta.classList.remove('hidden'); 
             
+            const headerStudioBtn = document.getElementById('header-studio-btn');
+            if (headerStudioBtn) headerStudioBtn.classList.remove('hidden');
+
             messagesContainer.innerHTML = '';
             messagesContainer.classList.add('hidden');
             welcomeScreen.classList.remove('hidden');
@@ -467,28 +480,110 @@
             sendBtn.disabled = true;
             isGenerating = true;
 
+            // Determine if we're in text mode (short delay + detailed thinking) 
+            // vs media mode (long delay + simple indicator)
+            const isTextMode = currentMode === 'text';
+            const textWaitTime = Math.floor(Math.random() * 8000) + 4000; // Random time between 4 and 12 seconds
+            const waitTime = isTextMode ? textWaitTime : 30000; 
+
             welcomeScreen.classList.add('hidden');
             messagesContainer.classList.remove('hidden');
+            
+            // Add user message
             const userMsg = document.createElement('div');
             userMsg.className = 'flex justify-end';
             userMsg.innerHTML = `<div class="bg-blue-600 border border-blue-500 shadow-sm text-white px-5 py-3 rounded-2xl max-w-[80%]">${escapeHTML(val)}</div>`;
             messagesContainer.appendChild(userMsg);
             
-            // Add Thinking Indicator
-            const thinkingIndicator = document.createElement('div');
-            thinkingIndicator.id = 'thinking-indicator';
-            thinkingIndicator.className = 'flex gap-4 animate-in fade-in duration-300';
-            thinkingIndicator.innerHTML = `
-                <img src="dihgpt.png" alt="dihGPT" class="w-10 h-10 rounded-full object-contain shrink-0 opacity-70">
-                <div class="pt-1 flex items-center">
-                    <div class="text-gray-400 text-sm font-medium flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-2 rounded-xl animate-pulse">
-                        <i data-lucide="loader-2" class="w-4 h-4 animate-spin text-blue-400"></i>
-                        Thinking...
+            // Add UI Indicator based on Mode
+            if (isTextMode) {
+                const botMsg = document.createElement('div');
+                botMsg.id = 'current-thinking-msg';
+                botMsg.className = 'flex gap-4 animate-in fade-in duration-300 w-full';
+                botMsg.innerHTML = `
+                    <img src="dihgpt.png" alt="dihGPT" class="w-10 h-10 rounded-full object-contain shrink-0">
+                    <div class="pt-1 text-gray-200 flex-1">
+                        <details class="group" open>
+                            <summary class="flex items-center gap-2 cursor-pointer text-sm text-gray-400 hover:text-gray-300 select-none inline-flex bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl transition-colors">
+                                <i id="think-spinner" data-lucide="loader-2" class="w-4 h-4 animate-spin text-blue-400"></i>
+                                <span id="think-title" class="font-medium">Thinking Process</span>
+                                <i data-lucide="chevron-down" class="w-4 h-4 transition-transform group-open:rotate-180 ml-1"></i>
+                            </summary>
+                            <div class="pl-4 pt-3 pb-2 border-l-2 border-white/10 ml-3 mt-2 text-sm text-gray-500 font-mono space-y-2">
+                            </div>
+                        </details>
+                        <div id="text-response-area" class="mt-4 text-[15px] leading-relaxed hidden opacity-0 transition-opacity duration-500"></div>
                     </div>
-                </div>
-            `;
-            messagesContainer.appendChild(thinkingIndicator);
+                `;
+                messagesContainer.appendChild(botMsg);
+
+                // Dynamically add randomized thinking steps
+                const thinkingContainer = botMsg.querySelector('.font-mono');
+                
+                // Function to grab a random meaningful word/snippet from the prompt
+                const getSnippet = () => {
+                    const words = val.replace(/[^\w\s]/gi, '').split(/\s+/).filter(w => 
+                        w.length > 3 && !['this', 'that', 'with', 'what', 'when', 'where', 'how', 'why', 'from', 'your'].includes(w.toLowerCase())
+                    );
+                    if (words.length > 0) {
+                        return words[Math.floor(Math.random() * words.length)];
+                    }
+                    // Fallback if the prompt is very short
+                    return val.length > 15 ? val.substring(0, 15) + '...' : val;
+                };
+
+                // Realistic sounding AI operations mixed with user's specific context
+                const templates = [
+                    () => `Analyzing context around "${getSnippet()}"...`,
+                    () => `Evaluating implications of "${getSnippet()}"...`,
+                    () => `Comparing "${getSnippet()}" against established parameters...`,
+                    () => `Structuring logic variables for "${getSnippet()}"...`,
+                    () => `Resolving constraints involving "${getSnippet()}"...`,
+                    () => `Cross-referencing data on "${getSnippet()}"...`,
+                    () => `Determining optimal approach for "${getSnippet()}"...`,
+                    () => `Mapping semantic connections for "${getSnippet()}"...`
+                ];
+                
+                const shuffledTemplates = templates.sort(() => 0.5 - Math.random()).slice(0, 3);
+                
+                const steps = [
+                    `Understanding the user's request: "${val}"`,
+                    shuffledTemplates[0](),
+                    shuffledTemplates[1](),
+                    shuffledTemplates[2](),
+                    "Formulating final output sequence..."
+                ];
+
+                const stepInterval = Math.max(500, (textWaitTime - 1000) / steps.length);
+
+                steps.forEach((step, index) => {
+                    setTimeout(() => {
+                        if (botMsg.id === 'current-thinking-msg') {
+                            const p = document.createElement('p');
+                            p.className = 'animate-in fade-in slide-in-from-bottom-2 duration-500';
+                            p.textContent = step;
+                            thinkingContainer.appendChild(p);
+                            chatContainer.scrollTop = chatContainer.scrollHeight;
+                        }
+                    }, index * stepInterval);
+                });
+            } else {
+                const thinkingIndicator = document.createElement('div');
+                thinkingIndicator.id = 'thinking-indicator';
+                thinkingIndicator.className = 'flex gap-4 animate-in fade-in duration-300';
+                thinkingIndicator.innerHTML = `
+                    <img src="dihgpt.png" alt="dihGPT" class="w-10 h-10 rounded-full object-contain shrink-0 opacity-70">
+                    <div class="pt-1 flex items-center">
+                        <div class="text-gray-400 text-sm font-medium flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-2 rounded-xl animate-pulse">
+                            <i data-lucide="loader-2" class="w-4 h-4 animate-spin text-blue-400"></i>
+                            Generating ${toTitleCase(currentMode)}... (This may take up to 30s)
+                        </div>
+                    </div>
+                `;
+                messagesContainer.appendChild(thinkingIndicator);
+            }
             
+            lucide.createIcons();
             chatContainer.scrollTop = chatContainer.scrollHeight;
 
             const originalBtnHtml = sendBtn.innerHTML;
@@ -499,76 +594,159 @@
                 isGenerating = false;
                 sendBtn.innerHTML = originalBtnHtml;
                 
-                // Remove Thinking Indicator
-                const indicator = document.getElementById('thinking-indicator');
-                if (indicator) indicator.remove();
-                
-                lucide.createIcons();
+                if (isTextMode) {
+                    const botMsg = document.getElementById('current-thinking-msg');
+                    if (botMsg) {
+                        botMsg.removeAttribute('id');
+                        
+                        // Collapse and update the thinking block
+                        const details = botMsg.querySelector('details');
+                        if (details) details.removeAttribute('open');
+                        
+                        const spinner = botMsg.querySelector('#think-spinner');
+                        if (spinner) spinner.outerHTML = `<i data-lucide="check" class="w-4 h-4 text-green-400"></i>`;
+                        
+                        const title = botMsg.querySelector('#think-title');
+                        if (title) title.textContent = `Thought for ${(textWaitTime / 1000).toFixed(1)} seconds`;
+                        
+                        // Remove animations
+                        botMsg.querySelectorAll('.animate-pulse').forEach(el => el.classList.remove('animate-pulse'));
 
-                if (currentMode === 'audio' || currentMode === 'video') {
-                    chatContainer.classList.add('hidden');
-                    mediaContainer.classList.remove('hidden');
-                    
-                    mediaTitle.textContent = toTitleCase(val);
-                    const visualizerContainer = document.getElementById('media-visualizer');
-                    const iconContainer = document.getElementById('media-icon-container');
-                    
-                    if (currentMode === 'audio') {
-                        iconContainer.className = "w-full max-w-xl aspect-[2.5/1] bg-black/40 rounded-2xl flex flex-col items-center justify-center mb-8 shadow-inner border border-white/5 relative overflow-hidden group";
-                        mediaIcon.innerHTML = `
-                            <i data-lucide="music" class="w-16 h-16 sm:w-20 sm:h-20 text-blue-400 mb-2"></i>
-                            <span class="text-xs font-mono text-blue-400/50 uppercase tracking-[0.2em] border border-blue-500/20 rounded-full px-3 py-1 mt-2">Audio Generation</span>
-                        `;
-                        let bars = '';
-                        for(let i=0; i<40; i++) {
-                            let height = 10 + Math.random() * 80;
-                            bars += `<div class="w-1.5 sm:w-2 bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-sm transition-all duration-700" style="height: ${height}%;"></div>`;
+                        // Determine prefix text based on keywords or random
+                        const lowerVal = val.toLowerCase();
+                        let prefixText = "";
+                        
+                        if (lowerVal.includes("essay") || lowerVal.includes("write")) {
+                            prefixText = "Here's the essay!";
+                        } else if (lowerVal.includes("code") || lowerVal.includes("script") || lowerVal.includes("python") || lowerVal.includes("html")) {
+                            prefixText = "Here is the code you requested:";
+                        } else if (lowerVal.includes("explain") || lowerVal.includes("what") || lowerVal.includes("how")) {
+                            prefixText = "Here is a detailed explanation:";
+                        } else if (lowerVal.includes("story") || lowerVal.includes("tell me")) {
+                            prefixText = "Here is a story for you:";
+                        } else {
+                            const fallbacks = [
+                                "This is a tricky one, but i've figured out the answer:",
+                                "After deep thought, here is what I came up with:",
+                                "I've analyzed your request. Here you go:",
+                                "That's an interesting prompt! Here is the response:"
+                            ];
+                            prefixText = fallbacks[Math.floor(Math.random() * fallbacks.length)];
                         }
-                        visualizerContainer.innerHTML = bars;
-                    } else {
-                        iconContainer.className = "w-full aspect-video bg-black/60 rounded-2xl flex flex-col items-center justify-center mb-8 shadow-[inset_0_0_50px_rgba(0,0,0,0.8)] border border-white/5 relative overflow-hidden group";
-                        mediaIcon.innerHTML = `
-                            <i data-lucide="clapperboard" class="w-16 h-16 sm:w-20 sm:h-20 text-blue-400 mb-2"></i>
-                            <span class="text-xs font-mono text-blue-400/50 uppercase tracking-[0.2em] border border-blue-500/20 rounded-full px-3 py-1 mt-2">Video Generation</span>
-                        `;
-                        visualizerContainer.innerHTML = `<div class="absolute inset-0 bg-gradient-to-tr from-blue-500/10 via-transparent to-blue-400/10"></div>`;
+
+                        // Show actual text response with a typing effect
+                        const responseArea = botMsg.querySelector('#text-response-area');
+                        if (responseArea) {
+                            responseArea.innerHTML = '';
+                            responseArea.classList.remove('hidden');
+                            responseArea.classList.remove('opacity-0');
+                            
+                            const p1 = document.createElement('p');
+                            p1.className = 'text-gray-100 mb-4 min-h-[24px]';
+                            const p2 = document.createElement('p');
+                            p2.className = 'text-gray-100 min-h-[24px]';
+                            
+                            responseArea.appendChild(p1);
+                            responseArea.appendChild(p2);
+
+                            let charIndex1 = 0;
+                            function typePrefix() {
+                                if (charIndex1 < prefixText.length) {
+                                    p1.textContent += prefixText.charAt(charIndex1);
+                                    charIndex1++;
+                                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                                    setTimeout(typePrefix, 30); // 30ms per character
+                                } else {
+                                    setTimeout(typeDih, 400); // Brief pause before typing 'dih'
+                                }
+                            }
+
+                            let charIndex2 = 0;
+                            const dihText = "dih";
+                            function typeDih() {
+                                if (charIndex2 < dihText.length) {
+                                    p2.textContent += dihText.charAt(charIndex2);
+                                    charIndex2++;
+                                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                                    setTimeout(typeDih, 50); // 50ms per character for 'dih'
+                                } else {
+                                    lucide.createIcons();
+                                }
+                            }
+
+                            // Start the typing effect
+                            typePrefix();
+                        }
                     }
-                    
-                    lucide.createIcons();
-
-                    const botMsg = document.createElement('div');
-                    botMsg.className = 'flex gap-4';
-                    botMsg.innerHTML = `
-                        <div class="w-8 h-8 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center shrink-0">
-                            <i data-lucide="${currentMode === 'audio' ? 'music' : 'video'}" class="w-4 h-4 text-blue-400"></i>
-                        </div>
-                        <div class="pt-1 text-gray-200">
-                            <div class="bg-blue-600/10 border border-blue-500/20 backdrop-blur-sm p-3 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-blue-600/20 transition-colors" onclick="document.getElementById('media-container').classList.remove('hidden'); document.getElementById('chat-container').classList.add('hidden');">
-                                <i data-lucide="play-circle" class="w-5 h-5 text-blue-400"></i>
-                                <span class="font-medium text-sm text-blue-200">View ${toTitleCase(val)}</span>
-                            </div>
-                        </div>
-                    `;
-                    messagesContainer.appendChild(botMsg);
-                    lucide.createIcons();
-
                 } else {
-                    mediaContainer.classList.add('hidden');
-                    chatContainer.classList.remove('hidden');
-                    const botMsg = document.createElement('div');
-                    botMsg.className = 'flex gap-4';
-                    botMsg.innerHTML = `
-                        <img src="dihgpt.png" alt="dihGPT" class="w-10 h-10 rounded-full object-contain shrink-0">
-                        <div class="pt-1 text-gray-200">
-                            <p>This is a simulated response in <b>${currentMode}</b> mode for: "${escapeHTML(val)}"</p>
-                        </div>
-                    `;
-                    messagesContainer.appendChild(botMsg);
-                    lucide.createIcons();
+                    // Remove simple Thinking Indicator for Media
+                    const indicator = document.getElementById('thinking-indicator');
+                    if (indicator) indicator.remove();
+                    
+                    if (currentMode === 'audio' || currentMode === 'video') {
+                        chatContainer.classList.add('hidden');
+                        mediaContainer.classList.remove('hidden');
+                        
+                        mediaTitle.textContent = toTitleCase(val);
+                        const visualizerContainer = document.getElementById('media-visualizer');
+                        const iconContainer = document.getElementById('media-icon-container');
+                        
+                        if (currentMode === 'audio') {
+                            iconContainer.className = "w-full max-w-xl aspect-[2.5/1] bg-black/40 rounded-2xl flex flex-col items-center justify-center mb-8 shadow-inner border border-white/5 relative overflow-hidden group";
+                            mediaIcon.innerHTML = `
+                                <i data-lucide="music" class="w-16 h-16 sm:w-20 sm:h-20 text-blue-400 mb-2"></i>
+                                <span class="text-xs font-mono text-blue-400/50 uppercase tracking-[0.2em] border border-blue-500/20 rounded-full px-3 py-1 mt-2">Audio Generation</span>
+                            `;
+                            let bars = '';
+                            for(let i=0; i<40; i++) {
+                                let height = 10 + Math.random() * 80;
+                                bars += `<div class="w-1.5 sm:w-2 bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-sm transition-all duration-700" style="height: ${height}%;"></div>`;
+                            }
+                            visualizerContainer.innerHTML = bars;
+                        } else {
+                            iconContainer.className = "w-full aspect-video bg-black/60 rounded-2xl flex flex-col items-center justify-center mb-8 shadow-[inset_0_0_50px_rgba(0,0,0,0.8)] border border-white/5 relative overflow-hidden group";
+                            mediaIcon.innerHTML = `
+                                <i data-lucide="clapperboard" class="w-16 h-16 sm:w-20 sm:h-20 text-blue-400 mb-2"></i>
+                                <span class="text-xs font-mono text-blue-400/50 uppercase tracking-[0.2em] border border-blue-500/20 rounded-full px-3 py-1 mt-2">Video Generation</span>
+                            `;
+                            visualizerContainer.innerHTML = `<div class="absolute inset-0 bg-gradient-to-tr from-blue-500/10 via-transparent to-blue-400/10"></div>`;
+                        }
+                        
+                        lucide.createIcons();
+
+                        const botMsg = document.createElement('div');
+                        botMsg.className = 'flex gap-4';
+                        botMsg.innerHTML = `
+                            <div class="w-8 h-8 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center shrink-0">
+                                <i data-lucide="${currentMode === 'audio' ? 'music' : 'video'}" class="w-4 h-4 text-blue-400"></i>
+                            </div>
+                            <div class="pt-1 text-gray-200">
+                                <div class="bg-blue-600/10 border border-blue-500/20 backdrop-blur-sm p-3 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-blue-600/20 transition-colors" onclick="document.getElementById('media-container').classList.remove('hidden'); document.getElementById('chat-container').classList.add('hidden');">
+                                    <i data-lucide="play-circle" class="w-5 h-5 text-blue-400"></i>
+                                    <span class="font-medium text-sm text-blue-200">View ${toTitleCase(val)}</span>
+                                </div>
+                            </div>
+                        `;
+                        messagesContainer.appendChild(botMsg);
+                        lucide.createIcons();
+
+                    } else if (currentMode === 'image') {
+                        // Image generation response (long generation, no expand block)
+                        const botMsg = document.createElement('div');
+                        botMsg.className = 'flex gap-4';
+                        botMsg.innerHTML = `
+                            <img src="dihgpt.png" alt="dihGPT" class="w-10 h-10 rounded-full object-contain shrink-0">
+                            <div class="pt-1 text-gray-200">
+                                <p>This is a simulated response in <b>${currentMode}</b> mode for: "${escapeHTML(val)}"</p>
+                            </div>
+                        `;
+                        messagesContainer.appendChild(botMsg);
+                        lucide.createIcons();
+                    }
                 }
                 
                 chatContainer.scrollTop = chatContainer.scrollHeight;
-            }, 30000); 
+            }, waitTime); 
         });
 
         function escapeHTML(str) {
